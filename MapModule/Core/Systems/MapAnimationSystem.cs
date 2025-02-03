@@ -22,8 +22,8 @@ namespace MapModule.Core.Systems
         public void Pause()
         {
             isPaused = true;
-            MapManager.Instance.PublishEvent(
-                MapEvents.AnimationPaused,
+            MapEventSystem.Instance.Publish(
+                MapEventType.AnimationPaused,
                 new AnimationEventData(activeBlocks[0], animationTimer)
             );
         }
@@ -31,8 +31,8 @@ namespace MapModule.Core.Systems
         public void Resume()
         {
             isPaused = false;
-            MapManager.Instance.PublishEvent(
-                MapEvents.AnimationResumed,
+            MapEventSystem.Instance.Publish(
+                MapEventType.AnimationResumed,
                 new AnimationEventData(activeBlocks[0], animationTimer)
             );
         }
@@ -46,8 +46,8 @@ namespace MapModule.Core.Systems
             activeBlocks.Clear();
             activeBlocks.Add(startPosition);
             
-            MapManager.Instance.PublishEvent(
-                MapEvents.AnimationStarted,
+            MapEventSystem.Instance.Publish(
+                MapEventType.AnimationStarted,
                 new AnimationEventData(startPosition, config.ResetAnimationDuration)
             );
         }
@@ -68,8 +68,8 @@ namespace MapModule.Core.Systems
                 if (blockProgress < 0) continue;
                 
                 float height = CalculateBlockHeight(blockProgress);
-                MapManager.Instance.PublishEvent(
-                    MapEvents.BlockPositionUpdated,
+                MapEventSystem.Instance.Publish(
+                    MapEventType.BlockPositionUpdated,
                     new BlockPositionEventData(block, height)
                 );
             }
@@ -78,8 +78,8 @@ namespace MapModule.Core.Systems
             if (animationTimer >= config.ResetAnimationDuration)
             {
                 isAnimating = false;
-                MapManager.Instance.PublishEvent(
-                    MapEvents.AnimationCompleted,
+                MapEventSystem.Instance.Publish(
+                    MapEventType.AnimationCompleted,
                     new AnimationEventData(activeBlocks[0], config.ResetAnimationDuration)
                 );
             }

@@ -74,6 +74,12 @@ MapModule/
 - Paused: 暂停状态
 
 ### 3. 事件系统
+- 采用新的MapEventSystem实现
+- 支持强类型事件数据
+- 提供事件订阅/发布机制
+- 详细迁移指南请参考：[EventMigrationGuide.md](EventMigrationGuide.md)
+
+#### 事件类型
 - 系统事件（初始化、状态改变等）
 - 形状事件（击中、消失等）
 - 区域事件（状态变化等）
@@ -133,4 +139,3 @@ manager.ChangeState("Playing");
 4. 使用MathUtils进行数学计算
 5. 配置数据通过SO文件管理
 6. 视觉表现在Unity层实现
-

@@ -1,148 +1,100 @@
+using System;
 using System.Collections.Generic;
 using MapModule.Core.Data;
 using MapModule.Core.Events;
+using MapModule.Core.Interfaces;
+using MapModule.Core.States;
 
 namespace MapModule.Core.Systems
 {
-    public class MapManager : IMapManager, IPausable
+public class MapManager : IMapManager, ITileInteractionService
     {
-        private static MapManager instance;
-        public static MapManager Instance => instance ??= new MapManager();
-
-        private readonly MapEventSystem eventSystem;
-        private readonly Dictionary<int, ShapeState> shapes = new();
+        private readonly MapConfig config;
+        private readonly MapStateMachine stateMachine;
         private readonly List<IMapSystem> systems = new();
-        private MapAnimationSystem animationSystem;
-        private bool isPaused;
+        private bool isInitialized;
 
-        private MapManager()
+        public MapManager(MapConfig config)
         {
-            eventSystem = MapEventSystem.Instance;
-            isPaused = false;
+            this.config = config;
+            stateMachine = new MapStateMachine(this);
         }
 
-        public void Initialize(MapConfig config)
+        public void Initialize()
         {
-            // 初始化各个系统
-            var centralAreaSystem = new CentralAreaSystem(config, this);
-            var shapeSystem = new ShapeSystem(config, this);
-            animationSystem = new MapAnimationSystem(config);
+            if (isInitialized) return;
 
-            // 订阅动画相关事件
-            eventSystem.Subscribe(MapEvents.AnimationStarted, OnAnimationStarted);
-            eventSystem.Subscribe(MapEvents.AnimationCompleted, OnAnimationCompleted);
-            eventSystem.Subscribe(MapEvents.BlockPositionUpdated, OnBlockPositionUpdated);
+            // 初始化状态机
+            stateMachine.Initialize();
 
-            RegisterSystem(centralAreaSystem);
-            RegisterSystem(shapeSystem);
-        }
-
-        public void Pause()
-        {
-            isPaused = true;
+            // 初始化所有系统
             foreach (var system in systems)
             {
-                if (system is IPausable pausable)
-                {
-                    pausable.Pause();
-                }
+                system.Initialize(this);
             }
+
+            isInitialized = true;
+
+            MapEventSystem.Instance.Publish(MapEventType.MapInitialized, 
+                new MapStateEventData(MapEventType.MapInitialized, "MapManager"));
         }
 
-        public void Resume()
+        public void AddSystem(IMapSystem system)
         {
-            isPaused = false;
-            foreach (var system in systems)
-            {
-                if (system is IPausable pausable)
-                {
-                    pausable.Resume();
-                }
-            }
-        }
-
-        private void OnAnimationStarted(AnimationEventData data)
-        {
-            // 暂停其他系统
-            foreach (var system in systems)
-            {
-                if (system is IPausable pausable)
-                {
-                    pausable.Pause();
-                }
-            }
-        }
-
-        private void OnAnimationCompleted(AnimationEventData data)
-        {
-            // 恢复其他系统
-            foreach (var system in systems)
-            {
-                if (system is IPausable pausable)
-                {
-                    pausable.Resume();
-                }
-            }
-        }
-
-        private void OnBlockPositionUpdated(BlockPositionEventData data)
-        {
-            UpdateBlockPosition(data.Position, data.Height);
-        }
-
-        private void UpdateBlockPosition(Vector2D position, float height)
-        {
-            if (shapes.TryGetValue(position.GetHashCode(), out var shape))
-            {
-                shape.Position = position;
-                shape.Height = height;
-                
-                // 通知相关系统更新
-                PublishEvent(MapEvents.ShapeChanged, new ShapeChangedEvent
-                {
-                    Position = position,
-                    Height = height
-                });
-            }
+            systems.Add(system);
         }
 
         public void Update(float deltaTime)
         {
-            if (isPaused) return;
-            animationSystem?.Update(deltaTime);
+            if (!isInitialized) return;
+
+            stateMachine.Update(deltaTime);
+
+            foreach (var system in systems)
+            {
+                system.Update(deltaTime);
+            }
         }
 
-        public void StartResetAnimation(Vector2D startPosition)
+        public void ChangeState(MapStateType stateType)
         {
-            animationSystem?.StartResetAnimation(startPosition);
+            stateMachine.ChangeState(stateType);
         }
 
-        public void PublishEvent<T>(string eventName, T eventData)
+        public List<PlayerData> GetPlayersInArea(Vector3D center, float radius)
         {
-            eventSystem.Publish(eventName, eventData);
+            // TODO: 实现玩家区域检测
+            return new List<PlayerData>();
         }
 
-        public void RegisterSystem(IMapSystem system)
+        // 实现ITileInteractionService接口
+        public void ModifyTileState(Vector2Data tilePos, int newState)
         {
-            systems.Add(system);
-            system.Initialize(this);
+            // TODO: 实现图块状态修改逻辑
+            MapEventSystem.Instance.Publish(MapEventType.TileStateChanged,
+                new TileModifyEventData(tilePos, newState));
+        }
+
+        public TileAreaInfo GetTileAreaInfo(Vector2Data center, float radius)
+        {
+            // TODO: 实现区域图块信息获取
+            return new TileAreaInfo {
+                Center = center,
+                Radius = radius,
+                TileStates = Array.Empty<int>(),
+                HasSpecialTerrain = false
+            };
         }
 
         public void Dispose()
         {
-            // 取消订阅事件
-            eventSystem.Unsubscribe(MapEvents.AnimationStarted, OnAnimationStarted);
-            eventSystem.Unsubscribe(MapEvents.AnimationCompleted, OnAnimationCompleted);
-            eventSystem.Unsubscribe(MapEvents.BlockPositionUpdated, OnBlockPositionUpdated);
-
-            // 清理系统
             foreach (var system in systems)
             {
                 system.Dispose();
             }
-            systems.Clear();
-            shapes.Clear();
-            eventSystem.Clear();
+
+            MapEventSystem.Instance.Publish(MapEventType.MapShutdown, 
+                new MapStateEventData(MapEventType.MapShutdown, "MapManager"));
         }
     }
 }

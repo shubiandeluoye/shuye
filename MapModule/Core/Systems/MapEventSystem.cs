@@ -1,39 +1,47 @@
 using System;
-using System.Collections.Generic;
+using Core.Events;
+using MapModule.Core.Events;
 
 namespace MapModule.Core.Systems
 {
-    public class MapEventSystem
+    public class MapEventSystem : CoreEventSystem
     {
         private static MapEventSystem instance;
         public static MapEventSystem Instance => instance ??= new MapEventSystem();
 
-        private readonly Dictionary<string, List<Action<object>>> eventHandlers = 
-            new Dictionary<string, List<Action<object>>>();
-
-        public void Subscribe(string eventName, Action<object> handler)
+        public MapEventSystem() : base()
         {
-            if (!eventHandlers.ContainsKey(eventName))
-            {
-                eventHandlers[eventName] = new List<Action<object>>();
-            }
-            eventHandlers[eventName].Add(handler);
         }
 
-        public void Publish(string eventName, object eventData)
+        public void Subscribe(MapEventType eventType, Action<MapEventData> handler)
         {
-            if (eventHandlers.ContainsKey(eventName))
+            base.Subscribe(eventType.ToString(), handler);
+        }
+
+        public void Publish(MapEventType eventType, MapEventData eventData)
+        {
+            base.Publish(eventType.ToString(), eventData);
+        }
+
+        public void Subscribe<T>(MapEventType eventType, Action<T> handler) where T : MapEventData
+        {
+            base.Subscribe(eventType.ToString(), (data) => 
             {
-                foreach (var handler in eventHandlers[eventName])
+                if (data is T typedData)
                 {
-                    handler.Invoke(eventData);
+                    handler(typedData);
                 }
-            }
+            });
+        }
+
+        public void Publish<T>(MapEventType eventType, T eventData) where T : MapEventData
+        {
+            base.Publish(eventType.ToString(), eventData);
         }
 
         public void Clear()
         {
-            eventHandlers.Clear();
+            base.Clear();
         }
     }
-} 
+}

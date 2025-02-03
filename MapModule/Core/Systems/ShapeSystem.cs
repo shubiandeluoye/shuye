@@ -2,6 +2,7 @@ using System;
 using MapModule.Core.Data;
 using MapModule.Core.Shapes;
 using MapModule.Core.Utils;
+using MapModule.Core.Events;
 
 namespace MapModule.Core.Systems
 {
@@ -52,8 +53,9 @@ namespace MapModule.Core.Systems
         {
             isPaused = true;
             currentShape?.Pause();
-            manager.PublishEvent(MapEvents.AnimationPaused, new AnimationEventData(
-                currentShape?.GetState().Position.ToVector2D() ?? Vector2D.Zero,
+            MapEventSystem.Instance.Publish(MapEventType.AnimationPaused, new AnimationEventData(
+                MapEventType.AnimationPaused,
+                currentShape?.GetState().Position.ToString(),
                 config.ShapeChangeInterval - shapeTimer
             ));
         }
@@ -62,8 +64,9 @@ namespace MapModule.Core.Systems
         {
             isPaused = false;
             currentShape?.Resume();
-            manager.PublishEvent(MapEvents.AnimationResumed, new AnimationEventData(
-                currentShape?.GetState().Position.ToVector2D() ?? Vector2D.Zero,
+            MapEventSystem.Instance.Publish(MapEventType.AnimationResumed, new AnimationEventData(
+                MapEventType.AnimationResumed,
+                currentShape?.GetState().Position.ToString(),
                 config.ShapeChangeInterval - shapeTimer
             ));
         }
@@ -86,11 +89,11 @@ namespace MapModule.Core.Systems
             shapeTimer = 0;
 
             // 触发事件
-            manager.PublishEvent(MapEvents.ShapeChanged, new ShapeChangedEvent
-            {
-                Type = type,
-                Position = currentShape?.GetState().Position ?? Vector3D.Zero
-            });
+            MapEventSystem.Instance.Publish(MapEventType.ShapeStateChanged, new ShapeEventData(
+                MapEventType.ShapeStateChanged,
+                currentShape?.GetId() ?? string.Empty,
+                type.ToString()
+            ));
         }
 
         public void HandleSkillHit(int skillId, Vector3D hitPoint)
